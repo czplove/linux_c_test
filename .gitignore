@@ -4,3 +4,5 @@
 Debug/
 .*
 !.gitignore
+!Makefile
+*.o
