@@ -42,15 +42,19 @@ int main(int argc, char **argv)
     
 label:
     {
-	    int j=5;
+    	printf("i = %d;research = %d\n", i, research);
+	    int j;
+	    
 	    for (i=0; i<3; i++) {
 	        printf("i = %d;j = %d\n", i, j);
 	    }
-	    
+	    j = 5;
+	    j++;	//-如果这个变量定义在label之后,这里对他的赋值是无效的,内部被转化为了NOP指令即什么也没有做
 	    if(research < 2)
 	    {
+	    	
+	    	
 	    	research++;
-	    	j++;	//-如果这个变量定义在label之后,这里对他的赋值是无效的,内部被转化为了NOP指令即什么也没有做
 	        goto label;
 	    }
     }
