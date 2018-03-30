@@ -12,7 +12,7 @@
 		
 		#define FALSE  0
 		#define TRUE   1
-		#define NULL 0
+//		#define NULL 0
 
 #ifdef SMS_GLOBAL
 			#define SMS_EXTERN
