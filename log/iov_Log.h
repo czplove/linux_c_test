@@ -51,7 +51,7 @@ extern char logbuffer[MAX_LOG_BUFFER];
 int newLogAdd( iLogFrom from, iLOG_LEVELS log_level, char * text );
 int newLogEmpty( void );
 int newLogGetIndex( void );
-int newLogLoop( int from, int startIndex, newlogCb_t cb );
+int newLogLoop( int from, int level, int startIndex, newlogCb_t cb );
 
 int filelog( char * filename, char * text );
 

@@ -25,10 +25,12 @@
 #include <errno.h>
 // #include <fcntl.h>
 #include <time.h>
+#include <stdarg.h>
 
 #include "iotSemaphore.h"
 // #include "fileCreate.h"
 #include "iov_Log.h"
+#include "Thread.h"
 
 #define NEWLOG_SHMKEY   99613
 #define NEWLOG_SEMKEY   99621
@@ -77,12 +79,19 @@ static char * newLogSharedMemory = NULL;	//-记录共享内存地址,就是一�
 
 char logbuffer[MAX_LOG_BUFFER];
 
-//#if defined(WIN32) || defined(WIN64)
-//mutex_type log_mutex;
-//#else
-//static pthread_mutex_t log_mutex_store = PTHREAD_MUTEX_INITIALIZER;
-//static mutex_type log_mutex = &log_mutex_store;
-//#endif
+#if !defined(WIN32) && !defined(WIN64)
+/**
+ * _unlink mapping for linux
+ */
+#define _unlink unlink
+#endif
+
+#if defined(WIN32) || defined(WIN64)
+mutex_type log_mutex;
+#else
+static pthread_mutex_t log_mutex_store = PTHREAD_MUTEX_INITIALIZER;
+static mutex_type log_mutex = &log_mutex_store;
+#endif
 
 // ------------------------------------------------------------------
 // Open / Close
@@ -246,21 +255,21 @@ int newLogEmpty( void ) {
 * -----------------------------------------------
 * 2019/06/11	     V1.0	    zhao dajun    创建
 ***********************************************************************/
-void Log(iLogFrom from, iLOG_LEVELS log_level, const char* format, ...)
+void iLog(iLogFrom from, iLOG_LEVELS log_level, const char* format, ...)
 {
 	static char msg_buf[512];
 	va_list args;	//-定义一个va_list型的变量,这个变量是指向参数的指针.
 	
-//	/* we're using a static character buffer, so we need to make sure only one thread uses it at a time */
-//	Thread_lock_mutex(log_mutex);	//-这里调用了一个互斥锁,其实就是对库函数的又一封装 
-//	//-在C中，当我们无法列出传递函数的所有实参的类型和数目时,可以用省略号指定参数表
-//	va_start(args, format);	//-用va_start宏初始化变量,这个宏的第二个参数是第一个可变参数的前一个参数,是一个固定的参数
-//	vsnprintf(msg_buf, sizeof(msg_buf), format, args);	//-将可变参数格式化输出到一个字符数组。
-//		
-//	newLogAdd( from, log_level, msg_buf );
-//	
-//	va_end(args);	//-用va_end宏结束可变参数的获取
-//	Thread_unlock_mutex(log_mutex); 
+	/* we're using a static character buffer, so we need to make sure only one thread uses it at a time */
+	Thread_lock_mutex(log_mutex);	//-这里调用了一个互斥锁,其实就是对库函数的又一封装 
+	//-在C中，当我们无法列出传递函数的所有实参的类型和数目时,可以用省略号指定参数表
+	va_start(args, format);	//-用va_start宏初始化变量,这个宏的第二个参数是第一个可变参数的前一个参数,是一个固定的参数
+	vsnprintf(msg_buf, sizeof(msg_buf), format, args);	//-将可变参数格式化输出到一个字符数组。
+		
+	newLogAdd( from, log_level, msg_buf );
+	
+	va_end(args);	//-用va_end宏结束可变参数的获取
+	Thread_unlock_mutex(log_mutex); 
 }
 
 /**
@@ -288,7 +297,7 @@ int newLogGetIndex( void ) {
  * \param cb Call-back function
  * \returns Last index on success, -1 on error
  */
-int newLogLoop( int from, int startIndex, newlogCb_t cb ) {	//-可以打印出特定序号from的内容
+int newLogLoop( int from, int level, int startIndex, newlogCb_t cb ) {	//-可以打印出特定序号from的内容
     if ( cb && ( newLogSharedMemory || newLogOpen() ) ) {
         newlog_t * pnewlog = (newlog_t *)newLogSharedMemory;
         int i, cnt;
@@ -306,7 +315,9 @@ int newLogLoop( int from, int startIndex, newlogCb_t cb ) {	//-可以打印出�
         if ( start < 0 ) start += NEWLOG_MAX_LOGS;
         for ( i=0; i<cnt && ok; i++ ) {
             if ( from == NEWLOG_FROM_NONE || pnewlog->log[start].from == from ) {
+            	if ( level == TRACE_MAXIMUM || pnewlog->log[start].level == level ) {
                 ok = cb( start, &pnewlog->log[start] );
+              }
             }
             if ( ++start >= NEWLOG_MAX_LOGS ) start = 0;
         }
@@ -346,16 +357,39 @@ int filelog( char * filename, char * text ) {
 
 #if defined(UNIT_TESTS)
 #include "atoi.h"
+static FILE* trace_destination = NULL;	/**< flag to indicate if trace is to be sent to a stream */
+static char* trace_destination_name = NULL; /**< the name of the trace file */
+static char* trace_destination_backup_name = NULL; /**< the name of the backup trace file */
+static int lines_written = 0; /**< number of lines written to the current output file */
+static int max_lines_per_file = 1000; /**< maximum number of lines to write to one trace file */
+
 /**
  * \brief Looper callback that prints a log line
  * \returns 1 to continue looping
  */
 static int printCb( int i, onelog_t * l ) {
+	if (trace_destination)
+	{
     time_t ts = l->ts;
     char timestr[40];
     sprintf( timestr, "%s", ctime( &ts ) );
     timestr[ strlen( timestr ) - 1 ] = '\0';
-    printf( "Log %d: %d, %s : %s\n", i, l->from, timestr, l->text );
+    fprintf(trace_destination, "Log %d: %d, %s : %s\n", i, l->from, timestr, l->text );
+    
+    if (trace_destination != stdout && ++lines_written >= max_lines_per_file)	//-如果文件写满了,就重新写,把原来的删除
+		{//-如果不是标准输出设备,而是写文件的话,这里就进行适合文件的处理	
+			//?这里的目的是什么还不清楚
+			fclose(trace_destination);	//-把缓冲区内最后剩余的数据输出到内核缓冲区，并释放文件指针和有关的缓冲区。		
+			_unlink(trace_destination_backup_name); /* remove any old backup trace file */	//-会删除参数pathname指定的文件
+			rename(trace_destination_name, trace_destination_backup_name); /* rename recently closed to backup */ //-给一个文件重命名
+			trace_destination = fopen(trace_destination_name, "w"); /* open new trace file */
+			if (trace_destination == NULL)
+				trace_destination = stdout;
+			lines_written = 0;
+		}
+		else
+    	fflush(trace_destination);
+  }
     return 1;
 }
 
@@ -377,11 +411,12 @@ static int printCb( int i, onelog_t * l ) {
  */
 int main( int argc, char * argv[] ) {
     signed char opt;
-    int i, from = NEWLOG_FROM_NONE, zero = 0;
+    int i, from = NEWLOG_FROM_NONE, zero = 0, level = TRACE_MAXIMUM;
 
     printf( "\n\nLog tail\n");
+    trace_destination = stdout;
 
-    while ( ( opt = getopt( argc, argv, "hf:z" ) ) != -1 ) {
+    while ( ( opt = getopt( argc, argv, "hf:l:o:z" ) ) != -1 ) {
         switch ( opt ) {
         case 'h':
             printf( "Usage: lt [-f <from>]\n\tWhere <from> is one of:\n" );
@@ -392,6 +427,22 @@ int main( int argc, char * argv[] ) {
         case 'f':
             printf( "From = %s\n", optarg );
             from = Atoi0( optarg );
+            break;
+        case 'l':
+            printf( "Level = %s\n", optarg );
+            level = Atoi0( optarg );
+            break;
+        case 'o':
+            printf( "out to %s\n", optarg );
+            if ((trace_destination = fopen(optarg, "w")) == NULL)	//-文件顺利打开后，指向该流的文件指针就会被返回
+							trace_destination = stdout;	//-stdout是一个文件指针,C己经在头文件中定义好的了，可以直接使用，把它赋给另一个文件指针。stdout（Standardoutput）标准输出
+						else
+						{
+							trace_destination_name = malloc(strlen(optarg) + 1);
+							strcpy(trace_destination_name, optarg);
+							trace_destination_backup_name = malloc(strlen(optarg) + 3);
+							sprintf(trace_destination_backup_name, "%s.0", trace_destination_name);	//-把格式化的数据写入某个字符串缓冲区
+						}
             break;
         case 'z':
             zero = 1;
@@ -404,8 +455,9 @@ int main( int argc, char * argv[] ) {
 
     while ( 1 ) {
         
-        startIndex = newLogLoop( from, startIndex, printCb );
+        startIndex = newLogLoop( from, level, startIndex, printCb );
         sleep( 1 );
+        iLog(NEWLOG_FROM_TEST, TRACE_MINIMUM, "LogLoop %d", i++);
     }
     
     return( 0 );
