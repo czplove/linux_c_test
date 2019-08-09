@@ -48,8 +48,9 @@ int main(int argc, char *argv[])
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
     }
     else if (argc == 4 && strcmp(argv[1], "-CA") == 0) {
-        curl_easy_setopt(curl, CURLOPT_CAPATH , argv[2]);
+        //curl_easy_setopt(curl, CURLOPT_CAPATH , "/etc/ssl/certs/");
         curl_easy_setopt(curl, CURLOPT_CAINFO , argv[3]);
+        printf("%s\n", argv[3]);
     }
     else {
         printf("client will verity sever cert\n");
