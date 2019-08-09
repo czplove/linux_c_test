@@ -6,8 +6,74 @@
 #include <sys/types.h> 
 #include <netinet/in.h> 
 #include <sys/socket.h> 
+#include <netinet/tcp.h>
 
 #define portnumber 3333
+
+#define NVRTR_DEBUG
+
+#ifdef NVRTR_DEBUG
+#define DEBUG_PRINTF(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINTF(...)
+#endif /* DB_DEBUG */
+
+///////////////////////////////////////////////////////////////////////////////
+int heartbeat(int fd)
+{
+    int alive,error,idle,cnt,intv,ret;
+
+    /*
+     * open keepalive on fd
+     */
+Restart:
+    alive = 1;//set keepalive open
+    ret=setsockopt(fd,SOL_SOCKET,SO_KEEPALIVE,&alive,sizeof(alive));
+    if(ret < 0)
+    {
+        DEBUG_PRINTF("set socket option error.\n");
+        exit(1);
+        goto Restart;
+    }
+
+    /*
+     * 15S without data,send heartbeat package
+     */
+    idle = 15;
+    ret = setsockopt(fd,SOL_TCP,TCP_KEEPIDLE,&idle,sizeof(idle));
+    if(ret < 0)
+    {
+        DEBUG_PRINTF("set keepalive idle error.\n");
+        exit(1);
+        return -1;
+    }
+
+    /*
+     * without any respond,10S later resend package
+     */
+    intv = 10;
+    ret = setsockopt(fd,SOL_TCP,TCP_KEEPINTVL,&intv,sizeof(intv));
+    if(ret < 0)
+    {
+        DEBUG_PRINTF("set keepalive intv error.\n");
+        exit(1);
+        return -2;
+    }
+
+    /*
+     * send 3 times,without any response,mean connect lose 
+     */
+    cnt = 3;
+    ret = setsockopt(fd,SOL_TCP,TCP_KEEPCNT,&cnt,sizeof(cnt));
+    if(ret < 0)
+    {
+        DEBUG_PRINTF("set keepalive cnt error.\n");
+        exit(1);
+        return -3;
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char *argv[]) 
 { 
@@ -36,6 +102,8 @@ int main(int argc, char *argv[])
         exit(1);  //-结束正在运行的整个程序
     }  
     
+    heartbeat(sockfd);
+    
 			/*将套接字绑定到服务器的网络地址上*/  
 	    if((connect(sockfd,(struct sockaddr *)&remote_addr,sizeof(struct sockaddr)))<0)
 	    {  
@@ -50,6 +118,16 @@ int main(int argc, char *argv[])
     fgets(buffer,1024,stdin); 
     write(sockfd,buffer,strlen(buffer)); 
 
+		int len;
+    len = read( sockfd, buffer, strlen(buffer) ); 
+//    len = recv(sockfd,buffer,strlen(buffer),0);
+    if ( len > 0 ) {
+        buffer[len] = '\0';
+        printf( "SR (%d): %s\n", len, buffer );
+
+    } else {
+        printf( "Socket reads %d bytes\n", len );
+    }
 
     close(sockfd); 
     exit(0); 
