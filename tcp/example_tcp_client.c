@@ -73,6 +73,51 @@ Restart:
     }
 }
 
+/* check whether socket is connected. Actually, it is not accurate if the client 
+ * crashs and the server don't know about it because the socket buffer is ready.
+ * So the return value '0' doesn't mean the socket is really valid. Of course,
+ * '-1' shows the socket is invalid 
+*/
+int checksock(int s)
+{
+        fd_set   fds;
+        char buf[2];
+        int nbread;
+        FD_ZERO(&fds);
+        FD_SET(s,&fds);
+        if ( select(s+1, &fds, (fd_set *)0, (fd_set *)0, NULL) == -1 ) {
+                //log(LOG_ERR,"select(): %s\n",strerror(errno)) ;
+                return -1;
+        }
+        if (!FD_ISSET(s,&fds)) {
+                //log(LOG_ERR,"select() returns OK but FD_ISSET not\n") ;
+                return -1;
+        }       
+        /* read one byte from socket */
+        nbread = recv(s, buf, 1, MSG_PEEK);
+        if (nbread <= 0)
+                return -1;
+        return 0;
+}
+
+int SocketConnected(int sock)
+{
+	   if(sock<=0) return 0;
+     struct tcp_info info;
+     int len=sizeof(info);
+     getsockopt(sock, IPPROTO_TCP, TCP_INFO, &info, (socklen_t *)&len);
+     if((info.tcpi_state==1)||(info.tcpi_state==8))  //info.tcpi_state==TCP_ESTABLISHED
+     {
+         return 1;
+     }
+     else
+     {
+         printf("tcpi_state %d\n",info.tcpi_state);
+         if((info.tcpi_state==7)) return 0;
+         return 1;
+     }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char *argv[]) 
@@ -91,8 +136,8 @@ int main(int argc, char *argv[])
 
 		memset(&remote_addr,0,sizeof(remote_addr)); //数据初始化--清零  
     remote_addr.sin_family=AF_INET; //设置为IP通信  
-    remote_addr.sin_addr.s_addr=inet_addr("192.168.10.23");//服务器IP地址 
-    remote_addr.sin_port=htons(9904); //服务器端口号  
+    remote_addr.sin_addr.s_addr=inet_addr("218.94.153.146");//服务器IP地址 218.94.153.146 192.168.10.23
+    remote_addr.sin_port=htons(9903); //服务器端口号  
 
 		/*创建客户端套接字--IPv4协议，面向连接通信，TCP协议*/  
     if((sockfd=socket(PF_INET,SOCK_STREAM,0))<0)  
