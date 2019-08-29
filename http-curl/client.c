@@ -18,6 +18,7 @@
 /* zsync command-line client program */
 
 //#include "zsglobal.h"
+#include "config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,41 +51,41 @@
  * TODO: Currently can dump the body to stdout; FIXME: Reject any body coming in -
  * write the function that receives the data, make that return an error and then it will stop
  */
-//char* get_redirected_url(const char *url)
-//{
-//    CURL *curl;
-//    CURLcode res;
-//    char *location;
-//    long response_code;
-//
-//    curl = curl_easy_init();
-//    if(curl) {
-//      curl_easy_setopt(curl, CURLOPT_URL, url);
-//      // FIXME: The two next lines are to prevent from "curl_easy_perform() failed: Problem with the SSL CA cert (path? access rights?)"
-//      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-//      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-//      res = curl_easy_perform(curl);
-//      if(res != CURLE_OK)
-//        fprintf(stderr, "curl_easy_perform() failed: %s\n",
-//                curl_easy_strerror(res));
-//      else {
-//        res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
-//        if((res == CURLE_OK) &&
-//           ((response_code / 100) != 3)) {
-//          return url; // Not a redirect, so return original URL
-//        }
-//        else {
-//          res = curl_easy_getinfo(curl, CURLINFO_REDIRECT_URL, &location);
-//
-//          if((res == CURLE_OK) && location) {
-//            return location; // The redirected location, hopefully
-//          }
-//        }
-//      }
-//      curl_easy_cleanup(curl);
-//    }
-//    return url;
-//}
+char* get_redirected_url(const char *url)
+{
+    CURL *curl;
+    CURLcode res;
+    char *location;
+    long response_code;
+
+    curl = curl_easy_init();
+    if(curl) {
+      curl_easy_setopt(curl, CURLOPT_URL, url);
+      // FIXME: The two next lines are to prevent from "curl_easy_perform() failed: Problem with the SSL CA cert (path? access rights?)"
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+      res = curl_easy_perform(curl);
+      if(res != CURLE_OK)
+        fprintf(stderr, "curl_easy_perform() failed: %s\n",
+                curl_easy_strerror(res));
+      else {
+        res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+        if((res == CURLE_OK) &&
+           ((response_code / 100) != 3)) {
+          return url; // Not a redirect, so return original URL
+        }
+        else {
+          res = curl_easy_getinfo(curl, CURLINFO_REDIRECT_URL, &location);
+
+          if((res == CURLE_OK) && location) {
+            return location; // The redirected location, hopefully
+          }
+        }
+      }
+      curl_easy_cleanup(curl);
+    }
+    return url;
+}
 
 /* FILE* f = open_zcat_pipe(file_str)
  * Returns a (popen) filehandle which when read returns the un-gzipped content
@@ -556,16 +557,16 @@ int main(int argc, char **argv) {
 //    long long local_used;
 //    char *zfname = NULL;
 //    time_t mtime;
-//
-//    int printRedirect = 0;
-//    int justCheckForUpdates = 0;
-//
-//    srand(getpid());
-//    {   /* Option parsing */
-//        int opt;
-//
-//        while ((opt = getopt(argc, argv, "r:c:k:o:i:VIsqju:")) != -1) {
-//            switch (opt) {
+
+    int printRedirect = 0;
+    int justCheckForUpdates = 0;
+
+    srand(getpid());
+    {   /* Option parsing */
+        int opt;
+
+        while ((opt = getopt(argc, argv, "r:c:k:o:i:VIsqju:")) != -1) {
+            switch (opt) {
 //            case 'k':
 //                free(zfname);
 //                zfname = strdup(optarg);
@@ -577,11 +578,11 @@ int main(int argc, char **argv) {
 //            case 'i':
 //                seedfiles = append_ptrlist(&nseedfiles, seedfiles, optarg);
 //                break;
-//            case 'V':
-//                printf(PACKAGE " v" VERSION " (compiled " __DATE__ " " __TIME__
-//                       ")\n" "By Colin Phipps <cph@moria.org.uk>\n"
-//                       "Published under the Artistic License v2, see the COPYING file for details.\n");
-//                exit(0);
+            case 'V':
+                printf(PACKAGE " v" VERSION " (compiled " __DATE__ " " __TIME__
+                       ")\n" "By Colin Phipps <cph@moria.org.uk>\n"
+                       "Published under the Artistic License v2, see the COPYING file for details.\n");
+                exit(0);
 //            case 's':
 //            case 'q':
 //                no_progress = 1;
@@ -595,24 +596,24 @@ int main(int argc, char **argv) {
 //            case 'c':
 //                cookie = strdup(optarg);
 //                break;
-//            case 'r':
-//                printRedirect = 1;
-//                break;
-//            case 'j':
-//                justCheckForUpdates = 1;
-//                break;
-//            }
-//        }
-//    }
-//
-//
-//    /* If we were asked to just resolve a redirect */
-//    if (printRedirect == 1) {
-//        char *redirectedUrl = get_redirected_url(argv[2]);
-//        fprintf(stdout, "%s\n", redirectedUrl);
-//        exit(0);
-//    }
-//
+            case 'r':
+                printRedirect = 1;
+                break;
+            case 'j':
+                justCheckForUpdates = 1;
+                break;
+            }
+        }
+    }
+
+
+    /* If we were asked to just resolve a redirect */
+    if (printRedirect == 1) {
+        char *redirectedUrl = get_redirected_url(argv[2]);
+        fprintf(stdout, "%s\n", redirectedUrl);
+        exit(0);
+    }
+
 //    /* Last and only non-option parameter must be the path/URL of the .zsync */
 //    if (optind == argc) {
 //        fprintf(stderr,
@@ -628,7 +629,7 @@ int main(int argc, char **argv) {
 //    /* STEP 1: Read the zsync control file */
 //    if ((zs = read_zsync_control_file(argv[optind], zfname, justCheckForUpdates ? 0 : 1)) == NULL)
 //        exit(1);
-//
+
 //    /* Get eventual filename for output, and filename to write to while working */
 //    if (!filename)
 //        filename = get_filename(zs, argv[optind]);
@@ -636,12 +637,12 @@ int main(int argc, char **argv) {
 //    strcpy(temp_file, filename);
 //    strcat(temp_file, ".part");
 //    fprintf(stdout, "Target %s\n", filename);
-//
-//    /* In case the user just wants to check whether there is an update available,
-//     * report with the exit code the result:
-//     *      0 if file is already updated
-//     *      1 if file needs to be updated
-//     */
+
+    /* In case the user just wants to check whether there is an update available,
+     * report with the exit code the result:
+     *      0 if file is already updated
+     *      1 if file needs to be updated
+     */
 //    if (justCheckForUpdates) {
 //        int fd = open(filename, O_RDONLY);
 //        if (fd < 0) {

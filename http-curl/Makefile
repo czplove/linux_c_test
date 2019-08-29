@@ -9,7 +9,7 @@ client.o : client.c
 
 
 clean :
-	rm iov_Log iov_Log.o 
+	rm dload_http *.o 
 
 
 #gcc sample.c -o sample
