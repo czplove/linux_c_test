@@ -625,10 +625,19 @@ int main(int argc, char **argv) {
 //                "Usage: zsync http://example.com/some/filename.zsync\n");
 //        exit(3);
 //    }
-//
-//    /* STEP 1: Read the zsync control file */
+
+    /* STEP 1: Read the zsync control file */
 //    if ((zs = read_zsync_control_file(argv[optind], zfname, justCheckForUpdates ? 0 : 1)) == NULL)
 //        exit(1);
+		FILE *f;
+		char *p = "https://www.baidu.com";
+		char *lastpath = NULL;
+		char *zfname = "test_http";
+		f = http_get(p, &lastpath, zfname);
+		if (!f) {
+            fprintf(stderr, "could not read control file from URL %s\n", p);
+            exit(3);
+        }
 
 //    /* Get eventual filename for output, and filename to write to while working */
 //    if (!filename)
