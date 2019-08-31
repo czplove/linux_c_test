@@ -545,6 +545,124 @@ static void **append_ptrlist(int *n, void **p, void *a) {
 //    return 0;
 //}
 
+ 
+/* 回调函数， 一定要遵循会点函数的格式    */
+static size_t httpCurlResCallback(void* buffer, size_t size, size_t nmemb, void* pUserArg)
+{
+    size_t len = 0;
+
+    printf("%s; buffer = %s\n", __FILE__, buffer);
+    len = size * nmemb;
+
+    return len;
+}
+
+
+double get_download_size(char* url){
+	CURL* pHandle = NULL;
+     CURLcode curlRet;
+     double size = 0.0;
+     long *pHttpCode;
+     char pRes[2048]= {0};
+
+     
+     FILE* fd = fopen("./aaa.txt", "wb+");
+
+     
+     /* 全局初始化 */
+    curlRet = curl_global_init(CURL_GLOBAL_ALL);
+    if(curlRet != 0)
+    {
+        printf("curl_global_init() error. curlRet = %d\n", curlRet);
+        goto EXIT;
+    }
+
+	/* 初始化libcurl会话 */
+    pHandle = curl_easy_init();
+    if(NULL == pHandle)
+    {
+        printf("curl_easy_init()error.\n");
+        goto EXIT;
+    }
+    
+    /* 设置连接超时时间 2秒*/
+    curlRet = curl_easy_setopt(pHandle, CURLOPT_CONNECTTIMEOUT, 2);
+    if(curlRet != 0)
+    {
+        printf("curl_easy_setopt() error! curlRet = %d\n", curlRet);
+        goto EXIT;
+    }
+    
+    /* 设置超时时间 5秒*/
+    curlRet = curl_easy_setopt(pHandle, CURLOPT_TIMEOUT, 5);
+    if(curlRet != 0)
+    {
+        printf("curl_easy_setopt() error! curlRet = %d\n", curlRet);
+        goto EXIT;
+    }
+
+    /* 设置url*/
+    curlRet = curl_easy_setopt(pHandle, CURLOPT_URL, url);
+    if(curlRet != 0)
+    {
+        printf("curl_easy_setopt() error. curlRet = %d\n", curlRet);
+        goto EXIT;
+    }
+
+    /* 设置 获取方法 GET*/
+    curlRet = curl_easy_setopt(pHandle, CURLOPT_HTTPGET, 1L);
+    if(curlRet != 0)
+    {
+        printf("curl_easy_setopt() error. curlRet = %d\n", curlRet);
+        goto EXIT;
+    }
+
+	/* 设置 回调函数 */
+    curlRet = curl_easy_setopt(pHandle, CURLOPT_WRITEFUNCTION, httpCurlResCallback);
+    if(curlRet != 0)
+    {
+        printf("curl_easy_setopt() error. curlRet = %d\n", curlRet);
+        goto EXIT;
+    }
+
+    /*传入回调函数需要的结构体的指针 */
+    curlRet = curl_easy_setopt(pHandle, CURLOPT_WRITEDATA, (void *)pRes);
+    if(curlRet != 0)
+    {
+        printf("curl_easy_setopt() error. curlRet = %d\n", curlRet);
+        goto EXIT;
+    }
+
+    /* 执行curl */
+    curlRet = curl_easy_perform(pHandle);
+	if(curlRet != 0)
+    {
+        printf("curl_easy_perform() error. curlRet = %d\n", curlRet);
+        goto EXIT;
+    }
+
+//	curlRet = curl_easy_getinfo(pHandle, CURLINFO_RESPONSE_CODE, pHttpCode);
+//	if(curlRet != 0)
+//    {
+//        printf("curl_easy_getinfo() error. curlRet = %d\n", curlRet);
+//        goto EXIT;
+//    }
+
+    printf("pHttpCode = %ld\n", pHttpCode);
+
+    //释放curl对象
+    curl_easy_cleanup(pHandle);
+
+
+     
+	//释放全局curl对象
+    curl_global_cleanup();
+
+
+EXIT:
+    return 0;
+}
+
 /****************************************************************************
  *
  * Main program */
@@ -625,10 +743,17 @@ int main(int argc, char **argv) {
 //                "Usage: zsync http://example.com/some/filename.zsync\n");
 //        exit(3);
 //    }
+	//-远程下载文件，并将http 头信息存放内存中以及文件大小等相关信息
+	char url[] = "http://192.168.1.106:9904/httptest.txt";
+	
+	double filesize = get_download_size(url);
+    printf("[%0.0lf] %s\n", filesize, url);
+
 
     /* STEP 1: Read the zsync control file */
 //    if ((zs = read_zsync_control_file(argv[optind], zfname, justCheckForUpdates ? 0 : 1)) == NULL)
 //        exit(1);
+#if 0
 		FILE *f;
 		char *p = "https://www.baidu.com";
 		char *lastpath = NULL;
@@ -638,6 +763,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "could not read control file from URL %s\n", p);
             exit(3);
         }
+#endif
 
 //    /* Get eventual filename for output, and filename to write to while working */
 //    if (!filename)
