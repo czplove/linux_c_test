@@ -733,6 +733,7 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
+#if 0
     /* Last and only non-option parameter must be the path/URL of the .zsync */
     if (optind == argc) {
         fprintf(stderr,
@@ -754,9 +755,8 @@ int main(int argc, char **argv) {
     /* STEP 1: Read the zsync control file */
 //    if ((zs = read_zsync_control_file(argv[optind], zfname, justCheckForUpdates ? 0 : 1)) == NULL)
 //        exit(1);
-#if 1
+
 		FILE *f;
-		char *p = "http://192.168.1.106:9904/httptest.txt";
 		char *lastpath = NULL;
 //		char *zfname = "./test_http";
 		f = http_get(argv[optind], &lastpath, zfname);
@@ -766,7 +766,30 @@ int main(int argc, char **argv) {
         }
         printf("lastpath: %s\n", lastpath);
 #endif
-
+	  char *p = "https://www.baidu.com";
+	  struct range_fetch *rf;
+	  unsigned char *buf;
+	  long zoffset;
+	  int len;
+	  /* Start a range fetch and a zsync receiver */
+	    rf = range_fetch_start(p);
+	    if (!rf) {
+//	        free(u);
+	        return -1;
+	    }
+    
+    /* Create a read buffer */
+    buf = malloc(BUFFERSIZE);
+    if (!buf) {
+//        zsync_end_receive(zr);
+        range_fetch_end(rf);
+//        free(u);
+        return -1;
+    }
+    
+	  len = get_range_block(rf, &zoffset, buf, BUFFERSIZE);
+	  
+	  printf("len=%d; zoffset=%d; buffer = %s\n", len, zoffset, buf);
 //    /* Get eventual filename for output, and filename to write to while working */
 //    if (!filename)
 //        filename = get_filename(zs, argv[optind]);
