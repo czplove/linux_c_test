@@ -553,6 +553,7 @@ static size_t httpCurlResCallback(void* buffer, size_t size, size_t nmemb, void*
 
     printf("%s; buffer = %s\n", __FILE__, buffer);
     len = size * nmemb;
+    fwrite(buffer, size, nmemb, pUserArg);
 
     return len;
 }
@@ -626,7 +627,7 @@ double get_download_size(char* url){
     }
 
     /*传入回调函数需要的结构体的指针 */
-    curlRet = curl_easy_setopt(pHandle, CURLOPT_WRITEDATA, (void *)pRes);
+    curlRet = curl_easy_setopt(pHandle, CURLOPT_WRITEDATA, (void *)fd);
     if(curlRet != 0)
     {
         printf("curl_easy_setopt() error. curlRet = %d\n", curlRet);
@@ -673,7 +674,7 @@ int main(int argc, char **argv) {
 //    int nseedfiles = 0;
 //    char *filename = NULL;
 //    long long local_used;
-//    char *zfname = NULL;
+    char *zfname = NULL;
 //    time_t mtime;
 
     int printRedirect = 0;
@@ -685,10 +686,10 @@ int main(int argc, char **argv) {
 
         while ((opt = getopt(argc, argv, "r:c:k:o:i:VIsqju:")) != -1) {
             switch (opt) {
-//            case 'k':
-//                free(zfname);
-//                zfname = strdup(optarg);
-//                break;
+            case 'k':
+                free(zfname);
+                zfname = strdup(optarg);
+                break;
 //            case 'o':
 //                free(filename);
 //                filename = strdup(optarg);
@@ -753,16 +754,17 @@ int main(int argc, char **argv) {
     /* STEP 1: Read the zsync control file */
 //    if ((zs = read_zsync_control_file(argv[optind], zfname, justCheckForUpdates ? 0 : 1)) == NULL)
 //        exit(1);
-#if 0
+#if 1
 		FILE *f;
-		char *p = "https://www.baidu.com";
+		char *p = "http://192.168.1.106:9904/httptest.txt";
 		char *lastpath = NULL;
-		char *zfname = "test_http";
+//		char *zfname = "./test_http";
 		f = http_get(p, &lastpath, zfname);
 		if (!f) {
             fprintf(stderr, "could not read control file from URL %s\n", p);
             exit(3);
         }
+        printf("lastpath: %s\n", lastpath);
 #endif
 
 //    /* Get eventual filename for output, and filename to write to while working */
