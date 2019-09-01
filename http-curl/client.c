@@ -733,17 +733,17 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
-//    /* Last and only non-option parameter must be the path/URL of the .zsync */
-//    if (optind == argc) {
-//        fprintf(stderr,
-//                "No .zsync file specified.\nUsage: zsync http://example.com/some/filename.zsync\n");
-//        exit(3);
-//    }
-//    else if (optind < argc - 1) {
-//        fprintf(stderr,
-//                "Usage: zsync http://example.com/some/filename.zsync\n");
-//        exit(3);
-//    }
+    /* Last and only non-option parameter must be the path/URL of the .zsync */
+    if (optind == argc) {
+        fprintf(stderr,
+                "No .zsync file specified.\nUsage: zsync http://example.com/some/filename.zsync\n");
+        exit(3);
+    }
+    else if (optind < argc - 1) {
+        fprintf(stderr,
+                "Usage: zsync http://example.com/some/filename.zsync\n");
+        exit(3);
+    }
 	//-远程下载文件，并将http 头信息存放内存中以及文件大小等相关信息
 	char url[] = "http://192.168.1.106:9904/httptest.txt";
 	
@@ -759,7 +759,7 @@ int main(int argc, char **argv) {
 		char *p = "http://192.168.1.106:9904/httptest.txt";
 		char *lastpath = NULL;
 //		char *zfname = "./test_http";
-		f = http_get(p, &lastpath, zfname);
+		f = http_get(argv[optind], &lastpath, zfname);
 		if (!f) {
             fprintf(stderr, "could not read control file from URL %s\n", p);
             exit(3);
